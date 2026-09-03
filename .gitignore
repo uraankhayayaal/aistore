@@ -18,6 +18,7 @@ dist/
 __debug_bin
 *.out
 rag-app
+knowledge-base
 
 # Dependency directories
 # ----------------------
