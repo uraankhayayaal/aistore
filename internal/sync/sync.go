@@ -247,7 +247,7 @@ func (sm *SyncManager) processItems(ctx context.Context, items []ContentItem) er
 				continue
 			}
 
-			metadata := map[string]interface{}{
+			metadata := map[string]string{
 				"source":     item.Source,
 				"url":        item.URL,
 				"title":      item.Title,
@@ -255,9 +255,15 @@ func (sm *SyncManager) processItems(ctx context.Context, items []ContentItem) er
 				"updated_at": item.UpdatedAt,
 			}
 
+			// Convert string map to interface{} map for qdrant.Chunk.
+			metaIfc := make(map[string]interface{}, len(metadata))
+			for k, v := range metadata {
+				metaIfc[k] = v
+			}
+
 			err = sm.qdrantClient.UpsertChunk(ctx, "rag_collection", qdrant.Chunk{
 				Text:     chunk.Text,
-				Metadata: metadata,
+				Metadata: metaIfc,
 			}, vector)
 			if err != nil {
 				log.Printf("Ошибка сохранения фрагмента: %v", err)
