@@ -247,7 +247,7 @@ func (sm *SyncManager) processItems(ctx context.Context, items []ContentItem) er
 				continue
 			}
 
-			metadata := map[string]interface{}{
+			metadata := map[string]string{
 				"source":     item.Source,
 				"url":        item.URL,
 				"title":      item.Title,
