@@ -44,11 +44,16 @@ func (c *RealClient) EnsureCollection(ctx context.Context, collectionName string
 
 // UpsertChunk вставляет или обновляет фрагмент текста с вектором.
 func (c *RealClient) UpsertChunk(ctx context.Context, collectionName string, chunk Chunk, vector []float32) error {
-	newID := "k-b-c-" + uuid.New().String()
+	newID := generatePointID()
 	_ = newID
 	_ = chunk
 	_ = vector
 	return nil
+}
+
+// generatePointID возвращает уникальный ID точки в формате k-b-c-{uuid4}.
+func generatePointID() string {
+	return "k-b-c-" + uuid.New().String()
 }
 
 // Search выполняет семантический поиск по вектору.
