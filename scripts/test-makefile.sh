@@ -1,22 +1,23 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -euo pipefail
 
 echo "=== Testing Makefile targets ==="
 
-echo "Testing: make help"
-make help > /dev/null && echo "✓ help passed"
+# Test help
+make help > /dev/null 2>&1 && echo "help: OK" || (echo "help: FAIL"; exit 1)
 
-echo "Testing: make deps"
-make deps > /dev/null && echo "✓ deps passed"
+# Test deps
+make deps > /dev/null 2>&1 && echo "deps: OK" || (echo "deps: FAIL"; exit 1)
 
-echo "Testing: make build"
-make build > /dev/null && echo "✓ build passed"
+# Test build
+make build > /dev/null 2>&1 && echo "build: OK" || (echo "build: FAIL"; exit 1)
+make cleanup > /dev/null 2>&1
 
-echo "Testing: make test"
-make test > /dev/null && echo "✓ test passed"
+# Test test
+make test > /dev/null 2>&1 && echo "test: OK" || (echo "test: FAIL"; exit 1)
 
-echo "Testing: make lint"
-make lint > /dev/null && echo "✓ lint passed"
+# Test lint
+make lint > /dev/null 2>&1 && echo "lint: OK" || (echo "lint: FAIL"; exit 1)
 
-echo ""
-echo "All Makefile targets passed successfully!"
+echo "=== All tests passed ==="
+exit 0

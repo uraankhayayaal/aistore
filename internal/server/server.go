@@ -136,7 +136,7 @@ func (s *Server) searchHandler(w http.ResponseWriter, r *http.Request) {
 		res := SearchResult{
 			Text:     strVal(p.Payload["text"]),
 			Metadata: p.Payload,
-			Score:    p.Score,
+			Score:    float32(p.Score),
 		}
 		results = append(results, res)
 

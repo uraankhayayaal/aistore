@@ -40,13 +40,12 @@ func (c *Client) UpsertChunk(ctx context.Context, collectionName string, chunk C
 	return c.realClient.UpsertChunk(ctx, collectionName, chunk, vector)
 }
 
-// Search выполняет семантический поиск по косинусной близости и возвращает
-// топ-N наиболее похожих точек с метаданными и оценкой совпадения.
+// Search выполняет семантический поиск по косинусной близости.
 func (c *Client) Search(ctx context.Context, collectionName string, vector []float32, limit int32) ([]*Point, error) {
 	return c.realClient.Search(ctx, collectionName, vector, limit)
 }
 
-// GetCollectionStats возвращает статистику коллекции (количество точек и т.д.).
+// GetCollectionStats возвращает статистику коллекции.
 func (c *Client) GetCollectionStats(ctx context.Context, collectionName string) (*CollectionStats, error) {
 	return c.realClient.GetCollectionStats(ctx, collectionName)
 }

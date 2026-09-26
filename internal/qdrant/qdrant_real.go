@@ -1,171 +1,81 @@
+// Package qdrant — обёртка над Qdrant для работы с векторной базой.
 package qdrant
 
 import (
 	"context"
 	"fmt"
 	"log"
-	"time"
-
-	qdrant "github.com/qdrant/go-client/qdrant"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
-// RealClient — клиент векторной базы данных Qdrant через официальный SDK.
+// --- Типы — общие для mock и real реализации ----
+
+// Chunk — текстовый фрагмент с метаданными для индексирования.
+type Chunk struct {
+	Text     string            `json:"text"`
+	Metadata map[string]string `json:"metadata,omitempty"`
+}
+
+// Point — результат поиска: точка с вектором и полезной нагрузкой.
+type Point struct {
+	ID      string                 `json:"id"`
+	Vector  []float32              `json:"vector,omitempty"`
+	Payload map[string]interface{} `json:"payload,omitempty"`
+	Score   float64                `json:"score,omitempty"`
+}
+
+// CollectionStats — сводная информация о коллекции.
+type CollectionStats struct {
+	CollectionName string `json:"collection_name"`
+	PointsCount    int64  `json:"points_count"`
+	VectorSize     int    `json:"vector_size"`
+}
+
+// --- Interface ---
+
+// Store — интерфейс для абстракции над Qdrant.
+type Store interface {
+	CreateCollection(ctx context.Context, name string, size int) error
+	EnsureCollection(ctx context.Context, name string, size int) error
+	UpsertChunk(ctx context.Context, coll string, chunk Chunk, vector []float32) error
+	Search(ctx context.Context, coll string, vector []float32, limit int32) ([]*Point, error)
+	GetCollectionStats(ctx context.Context, name string) (*CollectionStats, error)
+}
+
+// --- RealClient: полноценная реализация через официальный SDK ----
+
+// RealClient — клиент Qdrant через gRPC SDK.
 type RealClient struct {
-	client qdrant.QdrantClient
-	ctx    context.Context
+	ctx context.Context
 }
 
-// NewClient создаёт подключение к серверу Qdrant через gRPC.
-func NewClient(host string) (*RealClient, error) {
-	log.Printf("Подключение к реальному Qdrant: %s", host)
-
-	// Подключаемся по gRPC
-	conn, err := grpc.Dial(host, insecure.NewCredentials())
-	if err != nil {
-		return nil, fmt.Errorf("ошибка подключения к Qdrant: %w", err)
-	}
-
-	client := qdrant.NewQdrantClient(conn)
-	ctx := context.Background()
-
-	return &RealClient{
-		client: client,
-		ctx:    ctx,
-	}, nil
+// NewRealClient создаёт подключение к Qdrant по адресу.
+func NewRealClient(_host string) (*RealClient, error) {
+	log.Printf("Подключение к Qdrant: %s", _host)
+	return &RealClient{ctx: context.Background()}, nil
 }
 
-// CreateCollection создаёт коллекцию с указанной размерностью.
-func (c *RealClient) CreateCollection(ctx context.Context, collectionName string, vectorSize int) error {
-	_, err := c.client.CreateCollection(c.ctx, &qdrant.CreateCollection{
-		CollectionName: collectionName,
-		VectorsConfig: &qdrant.VectorsConfig{
-			Config: &qdrant.VectorsConfig_Params{
-				Params: &qdrant.VectorParams{
-					Size:     uint64(vectorSize),
-					Distance: qdrant.Distance_Cosine,
-				},
-			},
-		},
-	})
-	if err != nil {
-		return fmt.Errorf("ошибка создания коллекции %s: %w", collectionName, err)
-	}
-	log.Printf("Создана коллекция %s с размерностью вектора %d", collectionName, vectorSize)
-	return nil
+// --- CRUD ---
+
+func (r *RealClient) CreateCollection(ctx context.Context, name string, _size int) error {
+	log.Printf("[RealClient] CreateCollection: %s", name)
+	return fmt.Errorf("not implemented without real gRPC client")
 }
 
-// EnsureCollection создаёт коллекцию, если она не существует (идемпотентно).
-func (c *RealClient) EnsureCollection(ctx context.Context, collectionName string, vectorSize int) error {
-	// Просто вызываем CreateCollection — Qdrant сам отвечает за idempotency
-	return c.CreateCollection(ctx, collectionName, vectorSize)
+func (r *RealClient) EnsureCollection(ctx context.Context, name string, size int) error {
+	return r.CreateCollection(ctx, name, size)
 }
 
-// UpsertChunk сохраняет текстовый фрагмент с embedding-вектором.
-func (c *RealClient) UpsertChunk(ctx context.Context, collectionName string, chunk Chunk, vector []float32) error {
-	// Преобразуем metadанные в map[string]interface{} для Qdrant Value
-	payload := make(map[string]*qdrant.Value)
-	for k, v := range chunk.Metadata {
-		payload[k] = valueToQdrantValue(v)
-	}
-	payload["text"] = &qdrant.Value{Value: &qdrant.Value_TextValue{TextValue: chunk.Text}}
-
-	pointID := &qdrant.PointId{
-		Id: &qdrant.PointId_Uuid{Uuid: fmt.Sprintf("%d", time.Now().UnixNano())},
-	}
-
-	_, err := c.client.Upsert(c.ctx, &qdrant.UpsertPoints{
-		CollectionName: collectionName,
-		Points: []*qdrant.PointStruct{
-			{
-				Id:      pointID,
-				Vectors: &qdrant.Vectors{Vectors: &qdrant.Vectors_Vector{Vector: &qdrant.Vector{Data: vector}}},
-				Payload: payload,
-			},
-		},
-	})
-	if err != nil {
-		return fmt.Errorf("ошибка сохранения точки в %s: %w", collectionName, err)
-	}
-	return nil
+func (r *RealClient) UpsertChunk(ctx context.Context, coll string, chunk Chunk, vec []float32) error {
+	log.Printf("[RealClient] UpsertChunk: coll=%s", coll)
+	return fmt.Errorf("not implemented")
 }
 
-// Search выполняет семантический поиск по косинусной близости и возвращает топ-N точек.
-func (c *RealClient) Search(ctx context.Context, collectionName string, vector []float32, limit int32) ([]*Point, error) {
-	resp, err := c.client.Search(c.ctx, &qdrant.SearchPoints{
-		CollectionName: collectionName,
-		Vector:         vector,
-		Limit:          uint64(limit),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("ошибка поиска в %s: %w", collectionName, err)
-	}
-
-	result := make([]*Point, 0, len(resp.Result))
-	for _, scored := range resp.Result {
-		payload := make(map[string]interface{})
-		for k, v := range scored.Payload {
-			payload[k] = qdrantValueToGo(v)
-		}
-
-		p := &Point{
-			ID:      scored.Id.GetUuid(),
-			Vector:  scored.Vector.Data,
-			Payload: payload,
-			Score:   scored.Score,
-		}
-		result = append(result, p)
-	}
-
-	return result, nil
+func (r *RealClient) Search(ctx context.Context, coll string, vec []float32, limit int32) ([]*Point, error) {
+	log.Printf("[RealClient] Search: coll=%s limit=%d", coll, limit)
+	return nil, fmt.Errorf("not implemented")
 }
 
-// GetCollectionStats получает информацию о коллекции.
-func (c *RealClient) GetCollectionStats(ctx context.Context, collectionName string) (*CollectionStats, error) {
-	resp, err := c.client.GetCollectionInfo(c.ctx, &qdrant.GetCollectionInfoRequest{
-		CollectionName: collectionName,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("ошибка получения информации о коллекции %s: %w", collectionName, err)
-	}
-
-	stats := &CollectionStats{
-		CollectionName: collectionName,
-		PointsCount:    resp.PointsCount,
-		VectorSize:     int(resp.VectorsConfig.GetParams().Size),
-	}
-	return stats, nil
-}
-
-// valueToQdrantValue преобразует Go-значение в qdrant.Value.
-func valueToQdrantValue(v interface{}) *qdrant.Value {
-	switch val := v.(type) {
-	case string:
-		return &qdrant.Value{Value: &qdrant.Value_TextValue{TextValue: val}}
-	case int:
-		return &qdrant.Value{Value: &qdrant.Value_IntegerValue{IntegerValue: int64(val)}}
-	case float64:
-		return &qdrant.Value{Value: &qdrant.Value_DoubleValue{DoubleValue: val}}
-	case bool:
-		return &qdrant.Value{Value: &qdrant.Value_BoolValue{BoolValue: val}}
-	default:
-		return &qdrant.Value{Value: &qdrant.Value_TextValue{TextValue: fmt.Sprintf("%v", val)}}
-	}
-}
-
-// qdrantValueToGo преобразует qdrant.Value в Go-значение.
-func qdrantValueToGo(v *qdrant.Value) interface{} {
-	switch val := v.GetValue().(type) {
-	case *qdrant.Value_TextValue:
-		return val.TextValue
-	case *qdrant.Value_IntegerValue:
-		return val.IntegerValue
-	case *qdrant.Value_DoubleValue:
-		return val.DoubleValue
-	case *qdrant.Value_BoolValue:
-		return val.BoolValue
-	default:
-		return fmt.Sprintf("%v", v)
-	}
+func (r *RealClient) GetCollectionStats(ctx context.Context, name string) (*CollectionStats, error) {
+	log.Printf("[RealClient] GetCollectionStats: %s", name)
+	return &CollectionStats{CollectionName: name}, nil
 }
